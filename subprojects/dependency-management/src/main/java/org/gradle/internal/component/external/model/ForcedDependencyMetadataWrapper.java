@@ -89,6 +89,11 @@ public class ForcedDependencyMetadataWrapper implements ForcingDependencyMetadat
     }
 
     @Override
+    public boolean isAssemble() {
+        return delegate.isAssemble();
+    }
+
+    @Override
     public String getReason() {
         return delegate.getReason();
     }

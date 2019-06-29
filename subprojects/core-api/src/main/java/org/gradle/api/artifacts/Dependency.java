@@ -85,4 +85,20 @@ public interface Dependency {
      */
     @Incubating
     void because(@Nullable String reason);
+
+    /**
+     * Assimilate strong version constraints.
+     *
+     * @since 5.6
+     */
+    @Incubating
+    void assimilate();
+
+    /**
+     * Assimilate strong version constraints.
+     *
+     * @since 5.6
+     */
+    @Incubating
+    boolean isAssimilate();
 }

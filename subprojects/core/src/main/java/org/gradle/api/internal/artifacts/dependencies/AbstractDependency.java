@@ -22,6 +22,7 @@ import org.gradle.api.internal.artifacts.ResolvableDependency;
 
 public abstract class AbstractDependency implements ResolvableDependency, Dependency {
     private String reason;
+    private boolean assimilate = false;
 
     protected void copyTo(AbstractDependency target) {
         target.reason = reason;
@@ -39,5 +40,15 @@ public abstract class AbstractDependency implements ResolvableDependency, Depend
     @Override
     public void because(String reason) {
         this.reason = reason;
+    }
+
+    @Override
+    public void assimilate() {
+        this.assimilate = true;
+    }
+
+    @Override
+    public boolean isAssimilate() {
+        return this.assimilate;
     }
 }

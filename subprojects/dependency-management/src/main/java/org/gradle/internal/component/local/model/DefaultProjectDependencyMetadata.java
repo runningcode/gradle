@@ -71,6 +71,11 @@ public class DefaultProjectDependencyMetadata implements DependencyMetadata {
     }
 
     @Override
+    public boolean isAssemble() {
+        return delegate.isAssemble();
+    }
+
+    @Override
     public String getReason() {
         return delegate.getReason();
     }

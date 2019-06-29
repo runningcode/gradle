@@ -92,6 +92,11 @@ public class ModuleDependencyMetadataWrapper implements ModuleDependencyMetadata
     }
 
     @Override
+    public boolean isAssemble() {
+        return delegate.isAssemble();
+    }
+
+    @Override
     public String getReason() {
         return delegate.getReason();
     }

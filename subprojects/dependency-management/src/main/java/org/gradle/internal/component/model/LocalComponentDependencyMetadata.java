@@ -46,6 +46,8 @@ public class LocalComponentDependencyMetadata implements LocalOriginDependencyMe
     private final boolean changing;
     private final boolean transitive;
     private final boolean constraint;
+    private final boolean assemble;
+
     private final boolean fromLock;
     private final String reason;
 
@@ -61,8 +63,8 @@ public class LocalComponentDependencyMetadata implements LocalOriginDependencyMe
                                             List<IvyArtifactName> artifactNames,
                                             List<ExcludeMetadata> excludes,
                                             boolean force, boolean changing, boolean transitive, boolean constraint,
-                                            String reason) {
-        this(componentId, selector, moduleConfiguration, moduleAttributes, dependencyAttributes, dependencyConfiguration, artifactNames, excludes, force, changing, transitive, constraint, false, reason);
+                                            String reason, boolean assemble) {
+        this(componentId, selector, moduleConfiguration, moduleAttributes, dependencyAttributes, dependencyConfiguration, artifactNames, excludes, force, changing, transitive, constraint, false, reason, assemble);
     }
 
     public LocalComponentDependencyMetadata(ComponentIdentifier componentId,
@@ -75,7 +77,7 @@ public class LocalComponentDependencyMetadata implements LocalOriginDependencyMe
                                             List<ExcludeMetadata> excludes,
                                             boolean force, boolean changing, boolean transitive,
                                             boolean constraint, boolean fromLock,
-                                            String reason) {
+                                            String reason, boolean assemble) {
         this.componentId = componentId;
         this.selector = selector;
         this.moduleConfiguration = moduleConfiguration;
@@ -88,6 +90,7 @@ public class LocalComponentDependencyMetadata implements LocalOriginDependencyMe
         this.changing = changing;
         this.transitive = transitive;
         this.constraint = constraint;
+        this.assemble = assemble;
         this.fromLock = fromLock;
         this.reason = reason;
     }
@@ -185,6 +188,11 @@ public class LocalComponentDependencyMetadata implements LocalOriginDependencyMe
     }
 
     @Override
+    public boolean isAssemble() {
+        return assemble;
+    }
+
+    @Override
     public String getReason() {
         return reason;
     }
@@ -224,15 +232,15 @@ public class LocalComponentDependencyMetadata implements LocalOriginDependencyMe
     }
 
     private LocalOriginDependencyMetadata copyWithTarget(ComponentSelector selector) {
-        return new LocalComponentDependencyMetadata(componentId, selector, moduleConfiguration, moduleAttributes, dependencyAttributes, dependencyConfiguration, artifactNames, excludes, force, changing, transitive, constraint, fromLock, reason);
+        return new LocalComponentDependencyMetadata(componentId, selector, moduleConfiguration, moduleAttributes, dependencyAttributes, dependencyConfiguration, artifactNames, excludes, force, changing, transitive, constraint, fromLock, reason, assemble);
     }
 
     private LocalOriginDependencyMetadata copyWithReason(String reason) {
-        return new LocalComponentDependencyMetadata(componentId, selector, moduleConfiguration, moduleAttributes, dependencyAttributes, dependencyConfiguration, artifactNames, excludes, force, changing, transitive, constraint, fromLock, reason);
+        return new LocalComponentDependencyMetadata(componentId, selector, moduleConfiguration, moduleAttributes, dependencyAttributes, dependencyConfiguration, artifactNames, excludes, force, changing, transitive, constraint, fromLock, reason, assemble);
     }
 
     private LocalOriginDependencyMetadata copyWithForce(boolean force) {
-        return new LocalComponentDependencyMetadata(componentId, selector, moduleConfiguration, moduleAttributes, dependencyAttributes, dependencyConfiguration, artifactNames, excludes, force, changing, transitive, constraint, fromLock, reason);
+        return new LocalComponentDependencyMetadata(componentId, selector, moduleConfiguration, moduleAttributes, dependencyAttributes, dependencyConfiguration, artifactNames, excludes, force, changing, transitive, constraint, fromLock, reason, assemble);
     }
 
 }

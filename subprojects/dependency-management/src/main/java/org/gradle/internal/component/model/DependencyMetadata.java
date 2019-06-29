@@ -75,6 +75,8 @@ public interface DependencyMetadata {
      */
     boolean isConstraint();
 
+    boolean isAssemble();
+
     /**
      * An optional human readable reason why this dependency is used.
      * @return if not null, a description why this dependency is used.

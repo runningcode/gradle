@@ -114,6 +114,12 @@ public abstract class AbstractExternalModuleDependency extends AbstractModuleDep
         return moduleIdentifier;
     }
 
+    @Override
+    public void assimilate() {
+        versionConstraint.strictly(getVersion());
+        super.assimilate();
+    }
+
     static ModuleIdentifier assertModuleId(String group, String name) {
         if (name == null) {
             throw new InvalidUserDataException("Name must not be null!");

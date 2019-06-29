@@ -143,4 +143,10 @@ abstract class ClientModuleDelegate : ClientModule {
 
     override fun getReason(): String? =
         delegate.reason
+
+    override fun assimilate() =
+        delegate.assimilate()
+
+    override fun isAssimilate() =
+        delegate.isAssimilate
 }

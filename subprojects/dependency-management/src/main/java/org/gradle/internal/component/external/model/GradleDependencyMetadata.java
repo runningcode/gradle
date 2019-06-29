@@ -115,6 +115,11 @@ public class GradleDependencyMetadata implements ModuleDependencyMetadata, Forci
     }
 
     @Override
+    public boolean isAssemble() {
+        return false; //FIXME !!!
+    }
+
+    @Override
     public String getReason() {
         return reason;
     }

@@ -16,6 +16,8 @@
 
 package org.gradle.api.internal.artifacts.ivyservice.resolveengine.graph.builder;
 
+import org.gradle.api.artifacts.DependenciesMetadata;
+import org.gradle.api.artifacts.component.ComponentSelector;
 import org.gradle.internal.component.model.DependencyMetadata;
 import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
@@ -31,6 +33,7 @@ class SelectorOverrides {
     private final List<SelectorOverrides> parents = new ArrayList<>();
     private final List<SelectorOverrides> directChildren = new ArrayList<>();
     private final Map<ModuleIdentifier, DependencyMetadata> ownOverrides = new LinkedHashMap<>();
+    private final List<ComponentSelector> assembleDependencies = new ArrayList<>();
 
     SelectorOverrides(ModuleVersionIdentifier id) {
         this.id = id;
@@ -40,8 +43,20 @@ class SelectorOverrides {
         parents.add(parent);
     }
 
-    void addDirectChild(SelectorOverrides overrides) {
-        directChildren.add(overrides);
+    void addAssembleDependency(ComponentSelector dependency) {
+        assembleDependencies.add(dependency);
+    }
+
+    void maybeAddAssembled(SelectorOverrides overrides, ComponentSelector selector) {
+        if (assembleDependencies.remove(selector)) {
+            directChildren.add(overrides);
+        }
+    }
+
+    void finish() {
+        if (!assembleDependencies.isEmpty()) {
+            throw new RuntimeException("Assembled components have changed: " + assembleDependencies);
+        }
     }
 
     ModuleVersionIdentifier getId() {

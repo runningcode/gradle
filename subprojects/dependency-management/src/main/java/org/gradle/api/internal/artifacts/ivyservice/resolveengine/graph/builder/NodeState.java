@@ -396,6 +396,9 @@ public class NodeState implements DependencyGraphNode {
                     localOverrides.put(((ModuleComponentSelector) selector).getModuleIdentifier(), dependency);
                 }
             }
+            if (dependency.isAssemble()) {
+                localOverrides.addAssembleDependency(dependency.getSelector());
+            }
         }
         return localOverrides;
     }
@@ -408,7 +411,7 @@ public class NodeState implements DependencyGraphNode {
                 for (NodeState directChildNode: selected.getNodes()) {
                     SelectorOverrides childOverride = directChildNode.selectorOverrides;
                     if (childOverride != null) {
-                        selectorOverrides.addDirectChild(childOverride);
+                        selectorOverrides.maybeAddAssembled(childOverride, selector.getSelector());
                     }
                 }
             }
