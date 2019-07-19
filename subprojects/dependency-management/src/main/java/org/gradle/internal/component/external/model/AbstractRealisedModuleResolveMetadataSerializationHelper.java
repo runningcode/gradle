@@ -16,6 +16,7 @@
 
 package org.gradle.internal.component.external.model;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.gradle.api.artifacts.component.ModuleComponentSelector;
@@ -119,7 +120,7 @@ public abstract class AbstractRealisedModuleResolveMetadataSerializationHelper {
         boolean constraint = decoder.readBoolean();
         boolean force = decoder.readBoolean();
         String reason = decoder.readNullableString();
-        return new GradleDependencyMetadata(selector, excludes, constraint, reason, force);
+        return new GradleDependencyMetadata(selector, excludes, constraint, reason, force, ImmutableList.of());
     }
 
     protected List<ExcludeMetadata> readMavenExcludes(Decoder decoder) throws IOException {

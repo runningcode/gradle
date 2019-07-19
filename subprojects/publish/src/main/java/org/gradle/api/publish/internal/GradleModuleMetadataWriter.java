@@ -22,6 +22,7 @@ import com.google.gson.stream.JsonWriter;
 import org.apache.commons.lang.StringUtils;
 import org.gradle.api.Named;
 import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.DependencyArtifact;
 import org.gradle.api.artifacts.DependencyConstraint;
 import org.gradle.api.artifacts.ExcludeRule;
 import org.gradle.api.artifacts.ExternalDependency;
@@ -41,6 +42,7 @@ import org.gradle.api.internal.artifacts.dependencies.DefaultImmutableVersionCon
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.parser.GradleModuleMetadataParser;
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyPublicationResolver;
 import org.gradle.api.internal.attributes.AttributeContainerInternal;
+import org.gradle.api.internal.attributes.Classifier;
 import org.gradle.api.internal.attributes.ImmutableAttributes;
 import org.gradle.api.internal.component.SoftwareComponentInternal;
 import org.gradle.api.internal.component.UsageContext;
@@ -313,7 +315,11 @@ public class GradleModuleMetadataWriter {
     }
 
     private void writeAttributes(AttributeContainer attributes, JsonWriter jsonWriter) throws IOException {
-        if (attributes.isEmpty()) {
+        writeAttributes(attributes, jsonWriter, Collections.emptyMap());
+    }
+
+    private void writeAttributes(AttributeContainer attributes, JsonWriter jsonWriter, Map<String, String> extraAttributes) throws IOException {
+        if (attributes.isEmpty() && extraAttributes.isEmpty()) {
             return;
         }
         jsonWriter.name("attributes");
@@ -343,6 +349,10 @@ public class GradleModuleMetadataWriter {
             } else {
                 throw new IllegalArgumentException(String.format("Cannot write attribute %s with unsupported value %s of type %s.", attribute.getName(), value, value.getClass().getName()));
             }
+        }
+        for (Map.Entry<String, String> entry : extraAttributes.entrySet()) {
+            jsonWriter.name(entry.getKey());
+            jsonWriter.value(entry.getValue());
         }
         jsonWriter.endObject();
     }
@@ -435,7 +445,8 @@ public class GradleModuleMetadataWriter {
         if (dependency instanceof ModuleDependency) {
             ModuleDependency moduleDependency = (ModuleDependency) dependency;
             writeExcludes(moduleDependency, additionalExcludes, jsonWriter);
-            writeAttributes(moduleDependency.getAttributes(), jsonWriter);
+            Map<String, String> extraAttributes = extractCompatibilityAttributes(moduleDependency);
+            writeAttributes(moduleDependency.getAttributes(), jsonWriter, extraAttributes);
             writeCapabilities("requestedCapabilities", moduleDependency.getRequestedCapabilities(), jsonWriter);
         }
         String reason = dependency.getReason();
@@ -444,6 +455,19 @@ public class GradleModuleMetadataWriter {
             jsonWriter.value(reason);
         }
         jsonWriter.endObject();
+    }
+
+    private Map<String, String> extractCompatibilityAttributes(ModuleDependency moduleDependency) {
+        Set<DependencyArtifact> artifacts = moduleDependency.getArtifacts();
+        // TODO CC: What does it mean if there's more than one artifact? How is it possible?
+        if (artifacts.size() == 1) {
+            DependencyArtifact artifact = artifacts.iterator().next();
+            String classifier = artifact.getClassifier();
+            if (classifier != null) {
+                return Collections.singletonMap(Classifier.CLASSIFIER_ATTRIBUTE.getName(), classifier);
+            }
+        }
+        return Collections.emptyMap();
     }
 
     private void writeDependencyConstraints(UsageContext variant, JsonWriter jsonWriter, VersionMappingStrategyInternal versionMappingStrategy) throws IOException {

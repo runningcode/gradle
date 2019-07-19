@@ -66,7 +66,7 @@ public class LazyToRealisedModuleComponentResolveMetadataHelper {
         for (ComponentVariant.Dependency dependency : dependencies) {
             ModuleComponentSelector selector = DefaultModuleComponentSelector.newSelector(DefaultModuleIdentifier.newId(dependency.getGroup(), dependency.getModule()), dependency.getVersionConstraint(), dependency.getAttributes(), dependency.getRequestedCapabilities());
             List<ExcludeMetadata> excludes = dependency.getExcludes();
-            result.add(new GradleDependencyMetadata(selector, excludes, false, dependency.getReason(), force));
+            result.add(new GradleDependencyMetadata(selector, excludes, false, dependency.getReason(), force, ImmutableList.of()));
         }
         for (ComponentVariant.DependencyConstraint dependencyConstraint : dependencyConstraints) {
             result.add(new GradleDependencyMetadata(
@@ -74,7 +74,8 @@ public class LazyToRealisedModuleComponentResolveMetadataHelper {
                 Collections.<ExcludeMetadata>emptyList(),
                 true,
                 dependencyConstraint.getReason(),
-                force
+                force,
+                ImmutableList.of()
             ));
         }
         return result;
