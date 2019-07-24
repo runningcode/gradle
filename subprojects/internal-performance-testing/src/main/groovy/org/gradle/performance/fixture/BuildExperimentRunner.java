@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toSet;
 import static org.gradle.performance.fixture.DurationMeasurementImpl.executeProcess;
 import static org.gradle.performance.fixture.DurationMeasurementImpl.printProcess;
+import static org.gradle.performance.fixture.DurationMeasurementImpl.sync;
 
 public class BuildExperimentRunner {
 
@@ -173,6 +174,7 @@ public class BuildExperimentRunner {
             return;
         }
         setOSSchedulerStates(false);
+        dropFileCaches();
     }
 
     /**
@@ -187,6 +189,15 @@ public class BuildExperimentRunner {
         printProcess("Process count", "ps aux | wc --lines");
         printProcess("Gradle process count", "ps aux | egrep '[Gg]radle' | wc --lines");
         printProcess("Temp directory gradle file count", "find /tmp -type f -name '*gradle*' 2>/dev/null | wc --lines");
+    }
+
+    /**
+     * Clear PageCache, dentries and inodes.
+     */
+    private static void dropFileCaches() {
+        System.out.println("Dropping file caches");
+        sync();
+        executeProcess("sudo sysctl vm.drop_caches=3");
     }
 
     private static void afterIterations() {
