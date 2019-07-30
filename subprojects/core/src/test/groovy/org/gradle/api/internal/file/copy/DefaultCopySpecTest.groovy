@@ -375,7 +375,7 @@ class DefaultCopySpecTest extends Specification {
         expect:
         spec.caseSensitive
         spec.includeEmptyDirs
-        spec.duplicatesStrategy == DuplicatesStrategy.INCLUDE
+        spec.duplicatesStrategy == DuplicatesStrategy.FAIL
         spec.fileMode == null
         spec.dirMode == null
         spec.filteringCharset == Charset.defaultCharset().name()

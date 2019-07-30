@@ -121,11 +121,11 @@ class DefaultCopySpecResolutionTest extends Specification {
         patterns.excludeSpecs == [specExclude, childExclude] as Set
     }
 
-    def duplicatesStrategyDefaultsToInclude() {
+    def duplicatesStrategyDefaultsToFail() {
         expect:
         DefaultCopySpec child = new DefaultCopySpec(fileResolver, instantiator)
         DefaultCopySpec.DefaultCopySpecResolver childResolver = child.buildResolverRelativeToParent(parentSpec.buildRootResolver())
-        assert childResolver.duplicatesStrategy == DuplicatesStrategy.INCLUDE
+        assert childResolver.duplicatesStrategy == DuplicatesStrategy.FAIL
     }
 
     def childInheritsDuplicatesStrategyFromParent() {
@@ -134,7 +134,7 @@ class DefaultCopySpecResolutionTest extends Specification {
         DefaultCopySpec.DefaultCopySpecResolver childResolver = child.buildResolverRelativeToParent(parentSpec.buildRootResolver())
 
         then:
-        childResolver.duplicatesStrategy == DuplicatesStrategy.INCLUDE
+        childResolver.duplicatesStrategy == DuplicatesStrategy.FAIL
 
         when:
         parentSpec.duplicatesStrategy = 'EXCLUDE'
