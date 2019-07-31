@@ -18,7 +18,6 @@ package org.gradle.api.internal.artifacts.ivyservice.resolveengine.graph.builder
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -33,13 +32,10 @@ import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.capabilities.Capability;
 import org.gradle.api.internal.artifacts.DependencySubstitutionInternal;
 import org.gradle.api.internal.artifacts.ResolvedConfigurationIdentifier;
-import org.gradle.api.internal.artifacts.dependencies.DefaultImmutableVersionConstraint;
 import org.gradle.api.internal.artifacts.ivyservice.dependencysubstitution.DependencySubstitutionApplicator;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.excludes.ModuleExclusions;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.excludes.specs.ExcludeSpec;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.graph.DependencyGraphNode;
-import org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons;
-import org.gradle.api.internal.artifacts.ivyservice.resolveengine.subgraphconstraints.SubgraphConstraints;
 import org.gradle.api.internal.artifacts.result.DefaultResolvedVariantResult;
 import org.gradle.api.internal.attributes.ImmutableAttributes;
 import org.gradle.api.internal.attributes.ImmutableAttributesFactory;
@@ -112,9 +108,6 @@ public class NodeState implements DependencyGraphNode {
     private long incomingHash;
     private ExcludeSpec cachedModuleResolutionFilter;
     private ResolvedVariantResult cachedVariantResult;
-
-    private SubgraphConstraints ancestorsSubgraphConstraints;
-    private SubgraphConstraints ownSubgraphConstraints;
 
 
     public NodeState(Long resultId, ResolvedConfigurationIdentifier id, ComponentState component, ResolveState resolveState, ConfigurationMetadata md) {
@@ -373,11 +366,7 @@ public class NodeState implements DependencyGraphNode {
     private void visitDependencies(ExcludeSpec resolutionFilter, Collection<EdgeState> discoveredEdges) {
         PendingDependenciesVisitor pendingDepsVisitor = resolveState.newPendingDependenciesVisitor();
         try {
-            List<DependencyState> dependencies = dependencies(resolutionFilter);
-            ancestorsSubgraphConstraints = collectAncestorsSubgraphConstraints(incomingEdges);
-            ownSubgraphConstraints = collectOwnSubgraphConstraints(dependencies);
-            for (DependencyState dependencyState : dependencies) {
-                dependencyState = maybeOverrideVersion(dependencyState);
+            for (DependencyState dependencyState : dependencies(resolutionFilter)) {
                 dependencyState = maybeSubstitute(dependencyState, resolveState.getDependencySubstitutionApplicator());
                 PendingDependenciesVisitor.PendingState pendingState = pendingDepsVisitor.maybeAddAsPendingDependency(this, dependencyState);
                 if (dependencyState.getDependency().isConstraint()) {
@@ -394,22 +383,6 @@ public class NodeState implements DependencyGraphNode {
             // This way, all edges of the node will be re-processed.
             pendingDepsVisitor.complete();
         }
-    }
-
-    private DependencyState maybeOverrideVersion(DependencyState dependencyState) {
-        if (ancestorsSubgraphConstraints.isEmpty() && ownSubgraphConstraints.isEmpty()) {
-            return dependencyState;
-        }
-        if (dependencyState.getRequested() instanceof ModuleComponentSelector) {
-            ModuleComponentSelector requested = (ModuleComponentSelector) dependencyState.getRequested();
-            ModuleIdentifier module = dependencyState.getModuleIdentifier();
-            if (ancestorsSubgraphConstraints.contains(module)) {
-                return dependencyState.withTarget(DefaultModuleComponentSelector.newSelector(
-                    requested.getModuleIdentifier(), DefaultImmutableVersionConstraint.of()),
-                    Collections.singletonList(ComponentSelectionReasons.BY_ANCESTOR), true);
-            }
-        }
-        return dependencyState;
     }
 
     private void registerActivatingConstraint(DependencyState dependencyState) {
@@ -488,7 +461,6 @@ public class NodeState implements DependencyGraphNode {
             Collection<DependencyState> dependencyStates = potentiallyActivatedConstraints.get(module);
             if (!dependencyStates.isEmpty()) {
                 for (DependencyState dependencyState : dependencyStates) {
-                    dependencyState = maybeOverrideVersion(dependencyState);
                     dependencyState = maybeSubstitute(dependencyState, resolveState.getDependencySubstitutionApplicator());
                     createAndLinkEdgeState(dependencyState, discoveredEdges, previousTraversalExclusions, false);
                 }
@@ -562,7 +534,7 @@ public class NodeState implements DependencyGraphNode {
 
         DependencySubstitutionInternal details = substitutionResult.getResult();
         if (details != null && details.isUpdated()) {
-            return dependencyState.withTarget(details.getTarget(), details.getRuleDescriptors(), false);
+            return dependencyState.withTarget(details.getTarget(), details.getRuleDescriptors());
         }
         return dependencyState;
     }
@@ -749,48 +721,6 @@ public class NodeState implements DependencyGraphNode {
             edgeExclusions = moduleExclusions.excludeAll(excludedByBoth);
         }
         return edgeExclusions;
-    }
-
-    private SubgraphConstraints collectAncestorsSubgraphConstraints(List<EdgeState> incomingEdges) {
-        ImmutableSet.Builder<ModuleIdentifier> constraints = null;
-        for (EdgeState dependencyEdge : incomingEdges) {
-            if (!isConstraint(dependencyEdge)) {
-                SubgraphConstraints parentSubgraphConstraints = dependencyEdge.getFrom().ownSubgraphConstraints;
-                SubgraphConstraints parentAncestorsSubgraphConstraints = dependencyEdge.getFrom().ancestorsSubgraphConstraints;
-                if (!parentAncestorsSubgraphConstraints.isEmpty() || !parentSubgraphConstraints.isEmpty()) {
-                    if (constraints == null) {
-                        constraints = new ImmutableSet.Builder<>();
-                    }
-                    constraints.addAll(parentAncestorsSubgraphConstraints.getModules());
-                    constraints.addAll(parentSubgraphConstraints.getModules());
-                }
-            }
-        }
-        if (constraints == null) {
-            return SubgraphConstraints.EMPTY;
-        } else {
-            return SubgraphConstraints.of(constraints.build());
-        }
-    }
-
-    private SubgraphConstraints collectOwnSubgraphConstraints(List<DependencyState> dependencies) {
-        ImmutableSet.Builder<ModuleIdentifier> constraints = null;
-        for (DependencyState dependencyState : dependencies) {
-            if (dependencyState.getDependency().getSelector() instanceof ModuleComponentSelector) {
-                ModuleComponentSelector selector = (ModuleComponentSelector) dependencyState.getDependency().getSelector();
-                if (selector.getVersionConstraint().isForSubgraph()) {
-                    if (constraints == null) {
-                        constraints = new ImmutableSet.Builder<>();
-                    }
-                    constraints.add(selector.getModuleIdentifier());
-                }
-            }
-        }
-        if (constraints == null) {
-            return SubgraphConstraints.EMPTY;
-        } else {
-            return SubgraphConstraints.of(constraints.build());
-        }
     }
 
     private boolean sameIncomingEdgesAsPreviousPass(int incomingEdgeCount) {
