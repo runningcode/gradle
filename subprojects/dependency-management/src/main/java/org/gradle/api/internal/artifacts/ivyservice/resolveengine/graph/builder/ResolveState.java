@@ -161,12 +161,13 @@ class ResolveState implements ComponentStateFactory<ComponentState> {
         return selectors.values();
     }
 
-    public SelectorState getSelector(DependencyState dependencyState) {
+    public SelectorState getSelector(DependencyState dependencyState, NodeState parent) {
         SelectorState selectorState = selectors.computeIfAbsent(dependencyState.getRequested(), req -> {
             ModuleIdentifier moduleIdentifier = dependencyState.getModuleIdentifier();
             return new SelectorState(idGenerator.generateId(), dependencyState, idResolver, this, moduleIdentifier);
         });
         selectorState.update(dependencyState);
+        selectorState.addParent(parent);
         return selectorState;
     }
 

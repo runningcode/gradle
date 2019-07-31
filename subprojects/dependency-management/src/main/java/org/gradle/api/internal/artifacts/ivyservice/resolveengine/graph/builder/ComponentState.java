@@ -390,6 +390,16 @@ public class ComponentState implements ComponentResolutionState, DependencyGraph
         return module.getPlatformState();
     }
 
+    @Override
+    public boolean isVersionProvidedByAncestor(List<NodeState> potentialAncestors) {
+        return firstSelectedBy.isVersionProvidedByAncestor(potentialAncestors);
+    }
+
+    @Override
+    public List<NodeState> getParents() {
+        return firstSelectedBy.getParents();
+    }
+
     public void removeOutgoingEdges() {
         for (NodeState configuration : getNodes()) {
             configuration.deselect();

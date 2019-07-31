@@ -15,12 +15,15 @@
  */
 package org.gradle.api.internal.artifacts.ivyservice.resolveengine;
 
+import org.gradle.api.artifacts.ModuleIdentifier;
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.Version;
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionComparator;
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionParser;
+import org.gradle.api.internal.artifacts.ivyservice.resolveengine.graph.builder.NodeState;
 import org.gradle.internal.component.model.ComponentResolveMetadata;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -36,12 +39,31 @@ class LatestModuleConflictResolver<T extends ComponentResolutionState> implement
         this.versionParser = versionParser;
     }
 
+    private List<NodeState> allParents(Collection<? extends T> originalCandidates, T current) {
+        List<NodeState> result = new ArrayList<>();
+        for (T c : originalCandidates) {
+            if (c == current) {
+                continue;
+            }
+            result.addAll(c.getParents());
+        }
+        return result;
+    }
+
     @Override
     public void select(ConflictResolverDetails<T> details) {
+        Collection<? extends T> originalCandidates = details.getCandidates();
+        Collection<? extends T> candidates = new ArrayList<>(originalCandidates);
+        for (T candidate : originalCandidates) {
+            if (candidate.isVersionProvidedByAncestor(allParents(originalCandidates, candidate))) {
+                candidates.remove(candidate);
+            }
+        }
+
         // Find the candidates with the highest base version
         Version baseVersion = null;
         Map<Version, T> matches = new LinkedHashMap<Version, T>();
-        for (T candidate : details.getCandidates()) {
+        for (T candidate : candidates) {
             Version version = versionParser.transform(candidate.getVersion());
             if (baseVersion == null || versionComparator.compare(version.getBaseVersion(), baseVersion) > 0) {
                 matches.clear();

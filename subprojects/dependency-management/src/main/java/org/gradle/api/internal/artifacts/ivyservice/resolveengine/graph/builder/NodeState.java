@@ -36,6 +36,7 @@ import org.gradle.api.internal.artifacts.ivyservice.dependencysubstitution.Depen
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.excludes.ModuleExclusions;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.excludes.specs.ExcludeSpec;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.graph.DependencyGraphNode;
+import org.gradle.api.internal.artifacts.ivyservice.resolveengine.subgraphconstraints.SubgraphConstraints;
 import org.gradle.api.internal.artifacts.result.DefaultResolvedVariantResult;
 import org.gradle.api.internal.attributes.ImmutableAttributes;
 import org.gradle.api.internal.attributes.ImmutableAttributesFactory;
@@ -721,6 +722,43 @@ public class NodeState implements DependencyGraphNode {
             edgeExclusions = moduleExclusions.excludeAll(excludedByBoth);
         }
         return edgeExclusions;
+    }
+
+    boolean providesVersionFor(ModuleIdentifier moduleIdentifier, List<NodeState> source) {
+        if (source.contains(this)) {
+            return getSubgraphConstraints().contains(moduleIdentifier);
+        }
+        if (incomingEdges.isEmpty()) {
+            return false;
+        }
+        for (EdgeState dependencyEdge : incomingEdges) {
+            if (!isConstraint(dependencyEdge)) {
+                if (!dependencyEdge.getFrom().providesVersionFor(moduleIdentifier, source)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private SubgraphConstraints getSubgraphConstraints() {
+        Set<ModuleIdentifier> parentConstraints = null;
+        for (DependencyState dependencyState : cachedFilteredDependencyStates) {
+            if (dependencyState.getDependency().getSelector() instanceof ModuleComponentSelector) {
+                ModuleComponentSelector selector = (ModuleComponentSelector) dependencyState.getDependency().getSelector();
+                if (selector.getVersionConstraint().isForSubgraph()) {
+                    if (parentConstraints == null) {
+                        parentConstraints = Sets.newHashSet();
+                    }
+                    parentConstraints.add(selector.getModuleIdentifier());
+                }
+            }
+        }
+        if (parentConstraints == null) {
+            return SubgraphConstraints.EMPTY;
+        } else {
+            return SubgraphConstraints.of(parentConstraints);
+        }
     }
 
     private boolean sameIncomingEdgesAsPreviousPass(int incomingEdgeCount) {

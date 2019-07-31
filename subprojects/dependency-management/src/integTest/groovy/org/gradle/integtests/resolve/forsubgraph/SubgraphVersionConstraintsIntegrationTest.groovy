@@ -60,7 +60,7 @@ class SubgraphVersionConstraintsIntegrationTest extends AbstractModuleDependency
             root(':', ':test:') {
                 module('org:foo:1.0').byRequest()
                 module('org:bar:1.0') {
-                    edge('org:foo:2.0', 'org:foo:1.0').byAncestor()
+                    edge('org:foo:2.0', 'org:foo:1.0').byConflictResolution("between versions 2.0 and 1.0")
                 }
             }
         }
@@ -103,9 +103,9 @@ class SubgraphVersionConstraintsIntegrationTest extends AbstractModuleDependency
         then:
         resolve.expectGraph {
             root(':', ':test:') {
-                constraint('org:foo:1.0')
+                constraint('org:foo:1.0').byConstraint()
                 module('org:bar:1.0') {
-                    edge('org:foo:2.0', 'org:foo:1.0').byConstraint().byAncestor()
+                    edge('org:foo:2.0', 'org:foo:1.0').byConflictResolution("between versions 2.0 and 1.0").byRequest() // TODO I think this should not be "by request"
                 }
             }
         }
@@ -113,6 +113,7 @@ class SubgraphVersionConstraintsIntegrationTest extends AbstractModuleDependency
 
     void "a forSubgraph constraint wins over a nested forSubgraph constraint"() {
         boolean publishedConstraintsSupported = gradleMetadataEnabled
+        String conflictingVersions = publishedConstraintsSupported ? '3.0, 2.0 and 1.0' : '3.0 and 1.0'
 
         given:
         repository {
@@ -151,6 +152,11 @@ class SubgraphVersionConstraintsIntegrationTest extends AbstractModuleDependency
                 expectGetMetadata()
                 expectGetArtifact()
             }
+            if (publishedConstraintsSupported) {
+                'org:c:2.0' {
+                    expectGetMetadata()
+                }
+            }
         }
         run ':checkDeps'
 
@@ -159,7 +165,7 @@ class SubgraphVersionConstraintsIntegrationTest extends AbstractModuleDependency
             root(':', ':test:') {
                 module('org:a:1.0') {
                     module('org:b:1.0') {
-                        edge('org:c:3.0', 'org:c:1.0').byAncestor()
+                        edge('org:c:3.0', 'org:c:1.0').byRequest().byConflictResolution("between versions $conflictingVersions")
                     }
                     if (publishedConstraintsSupported) {
                         constraint('org:c:2.0', 'org:c:1.0')
@@ -217,7 +223,7 @@ class SubgraphVersionConstraintsIntegrationTest extends AbstractModuleDependency
             root(':', ':test:') {
                 module('org:a:1.0') {
                     module('org:b:1.0') {
-                        edge('org:c:2.0', 'org:c:1.0').byAncestor()
+                        edge('org:c:2.0', 'org:c:1.0').byConflictResolution("between versions 2.0 and 1.0").byRequest()
                     }
                     if (publishedConstraintsSupported) {
                         constraint('org:c:1.0')
@@ -275,9 +281,7 @@ class SubgraphVersionConstraintsIntegrationTest extends AbstractModuleDependency
                     module('org:b:1.0') {
                         module('org:c:2.0')
                     }
-                    edge('org:c:1.0', 'org:c:2.0').byConflictResolution("between versions 2.0 and 1.0").with {
-                        if (subgraphConstraintsSupported) { it.byAncestor() }
-                    }
+                    edge('org:c:1.0', 'org:c:2.0').byConflictResolution("between versions 2.0 and 1.0")
                 }
                 module('org:c:2.0').byRequest()
             }
@@ -336,9 +340,7 @@ class SubgraphVersionConstraintsIntegrationTest extends AbstractModuleDependency
                     module('org:b:1.0') {
                         edge('org:c:2.0', cResult)
                     }
-                    edge('org:c:1.0', cResult).byRequest().with {
-                        if (cResult == 'org:c:1.0') { it.byAncestor() } else { it.byConflictResolution("between versions 2.0 and 1.0") }
-                    }
+                    edge('org:c:1.0', cResult).byConflictResolution("between versions 2.0 and 1.0").byRequest()
                 }
             }
         }

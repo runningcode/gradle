@@ -74,6 +74,8 @@ class SelectorState implements DependencyGraphSelector, ResolvableSelectorState 
     private boolean softForced;
     private boolean fromLock;
 
+    private final List<NodeState> parents = Lists.newLinkedList();
+
     // An internal counter used to track the number of outgoing edges
     // that use this selector. Since a module resolve state tracks all selectors
     // for this module, when considering selectors that need to be used when
@@ -329,6 +331,26 @@ class SelectorState implements DependencyGraphSelector, ResolvableSelectorState 
             }
             dependencyState.addSelectionReasons(dependencyReasons);
         }
+    }
+
+    public void addParent(NodeState parent) {
+        parents.add(parent);
+    }
+
+    public boolean isVersionProvidedByAncestor(List<NodeState> potentialAncestors) {
+        if (parents.isEmpty()) {
+            return false;
+        }
+        for (NodeState parent : parents) {
+            if (!parent.providesVersionFor(dependencyState.getModuleIdentifier(), potentialAncestors)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public List<NodeState> getParents() {
+        return parents;
     }
 
     private class UnmatchedVersionsReason implements Describable {
