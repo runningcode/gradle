@@ -17,36 +17,56 @@
 package org.gradle.instantexecution
 
 import org.gradle.integtests.resolve.transform.ArtifactTransformTestFixture
-import spock.lang.Ignore
 
 class InstantExecutionDependencyResolutionIntegrationTest extends AbstractInstantExecutionIntegrationTest implements ArtifactTransformTestFixture {
-    @Ignore
-    def "task input files can include artifact transform output"() {
-        setupBuildWithColorTransformAction()
+    def setup() {
+        // So that dependency resolution results from previous executions do not interfere
+        requireOwnGradleUserHomeDir()
+    }
+
+    def "task input files can include the output of artifact transforms of project dependencies"() {
         settingsFile << """
             include 'a', 'b'
         """
+        setupBuildWithSimpleColorTransform()
         buildFile << """
             dependencies {
                 implementation project(':a')
                 implementation project(':b')
             }
+        """
 
-            abstract class MakeGreen implements TransformAction<TransformParameters.None> {
-                @InputArtifact
-                abstract Provider<FileSystemLocation> getInputArtifact()
-                
-                void transform(TransformOutputs outputs) {
-                    def input = inputArtifact.get().asFile
-                    println "processing \${input.name}"
-                    def output = outputs.file(input.name + ".green")
-                    output.text = input.text + ".green"
+        expect:
+        instantRun(":resolve")
+        outputContains("result = [a.jar.green, b.jar.green]")
+        instantRun(":resolve")
+        // For now, transforms are ignored when writing to the cache
+        outputContains("result = []")
+    }
+
+    def "task input files can include the output of artifact transforms of external dependencies"() {
+        withColorVariants(mavenRepo.module("group", "thing1", "1.2")).publish()
+        withColorVariants(mavenRepo.module("group", "thing2", "1.2")).publish()
+
+        setupBuildWithSimpleColorTransform()
+        buildFile << """
+            repositories {
+                maven { 
+                    url = uri('${mavenRepo.uri}') 
+                    metadataSources { gradleMetadata() }
                 }
+            } 
+            dependencies {
+                implementation "group:thing1:1.2"
+                implementation "group:thing2:1.2"
             }
         """
 
         expect:
         instantRun(":resolve")
+        outputContains("result = [thing1-1.2.jar.green, thing2-1.2.jar.green]")
         instantRun(":resolve")
+        // For now, transforms are ignored when writing to the cache
+        outputContains("result = []")
     }
 }

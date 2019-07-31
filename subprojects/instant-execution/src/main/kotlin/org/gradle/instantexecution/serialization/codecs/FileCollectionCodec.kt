@@ -16,12 +16,11 @@
 
 package org.gradle.instantexecution.serialization.codecs
 
+import org.gradle.api.internal.artifacts.transform.ConsumerProvidedVariantFiles
 import org.gradle.api.internal.file.FileCollectionFactory
 import org.gradle.api.internal.file.FileCollectionInternal
-import org.gradle.api.internal.file.FileCollectionLeafVisitor
+import org.gradle.api.internal.file.FileCollectionStructureVisitor
 import org.gradle.api.internal.file.FileTreeInternal
-import org.gradle.api.internal.file.collections.DirectoryFileTreeFactory
-import org.gradle.api.internal.file.collections.FileTreeAdapter
 import org.gradle.api.internal.file.collections.MinimalFileSet
 import org.gradle.api.tasks.util.PatternSet
 import org.gradle.instantexecution.serialization.Codec
@@ -34,14 +33,13 @@ import java.io.File
 internal
 class FileCollectionCodec(
     private val fileSetSerializer: SetSerializer<File>,
-    private val fileCollectionFactory: FileCollectionFactory,
-    private val directoryFileTreeFactory: DirectoryFileTreeFactory
+    private val fileCollectionFactory: FileCollectionFactory
 ) : Codec<FileCollectionInternal> {
 
     override suspend fun WriteContext.encode(value: FileCollectionInternal) {
         runCatching {
-            val visitor = CollectingVisitor(directoryFileTreeFactory)
-            value.visitLeafCollections(visitor)
+            val visitor = CollectingVisitor()
+            value.visitStructure(visitor)
             visitor.files
         }.apply {
             onSuccess { files ->
@@ -62,23 +60,35 @@ class FileCollectionCodec(
 
 
 private
-class CollectingVisitor(
-    private val directoryFileTreeFactory: DirectoryFileTreeFactory
-) : FileCollectionLeafVisitor {
+class CollectingVisitor : FileCollectionStructureVisitor {
     val files: MutableSet<File> = mutableSetOf()
 
-    override fun visitCollection(fileCollection: FileCollectionInternal) {
-        files.addAll(fileCollection.files)
+    override fun prepareForVisit(source: FileCollectionInternal.Source): FileCollectionStructureVisitor.VisitType {
+        return if (source is ConsumerProvidedVariantFiles) {
+            // Visit the source only for scheduled transforms
+            FileCollectionStructureVisitor.VisitType.NoContents
+        } else {
+            FileCollectionStructureVisitor.VisitType.Visit
+        }
+    }
+
+    override fun visitCollection(source: FileCollectionInternal.Source, contents: Iterable<File>) {
+        files.addAll(contents)
     }
 
     override fun visitGenericFileTree(fileTree: FileTreeInternal) {
-        visitCollection(fileTree)
+        // TODO - should serialize a spec for the tree instead of its current elements
+        files.addAll(fileTree)
     }
 
-    override fun visitFileTree(root: File, patterns: PatternSet) {
+    override fun visitFileTree(root: File, patterns: PatternSet, fileTree: FileTreeInternal) {
         // TODO - should serialize a spec for the tree instead of its current elements
-        val fileTree = directoryFileTreeFactory.create(root, patterns)
-        visitCollection(FileTreeAdapter(fileTree))
+        files.addAll(fileTree)
+    }
+
+    override fun visitFileTreeBackedByFile(file: File, fileTree: FileTreeInternal) {
+        // TODO - should serialize a spec for the tree instead of its current elements
+        files.addAll(fileTree)
     }
 }
 
