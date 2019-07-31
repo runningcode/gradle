@@ -139,7 +139,7 @@ public interface VersionConstraint extends Describable {
     List<String> getRejectedVersions();
 
     /**
-     * The version constraint wins over other transitively brought in constraints on the same component.
+     * Returns true if the version constraint wins over other transitively brought in constraints on the same component.
      *
      * @since 5.7
      */

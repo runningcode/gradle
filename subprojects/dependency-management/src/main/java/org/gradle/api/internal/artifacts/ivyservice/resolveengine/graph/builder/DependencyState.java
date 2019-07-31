@@ -27,6 +27,7 @@ import org.gradle.internal.resolve.ModuleVersionResolveException;
 
 import java.util.List;
 
+import static org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons.BY_ANCESTOR;
 import static org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons.CONSTRAINT;
 import static org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons.FORCED;
 import static org.gradle.api.internal.artifacts.ivyservice.resolveengine.result.ComponentSelectionReasons.REQUESTED;
@@ -36,6 +37,7 @@ class DependencyState {
     private final DependencyMetadata dependency;
     private final List<ComponentSelectionDescriptorInternal> ruleDescriptors;
     private final ComponentSelectorConverter componentSelectorConverter;
+    private final boolean ignoreVersion;
     private final int hashCode;
 
     private ModuleIdentifier moduleIdentifier;
@@ -43,20 +45,22 @@ class DependencyState {
     private boolean reasonsAlreadyAdded;
 
     DependencyState(DependencyMetadata dependency, ComponentSelectorConverter componentSelectorConverter) {
-        this(dependency, dependency.getSelector(), null, componentSelectorConverter);
+        this(dependency, dependency.getSelector(), null, componentSelectorConverter, false);
     }
 
-    private DependencyState(DependencyMetadata dependency, ComponentSelector requested, List<ComponentSelectionDescriptorInternal> ruleDescriptors, ComponentSelectorConverter componentSelectorConverter) {
+    private DependencyState(DependencyMetadata dependency, ComponentSelector requested, List<ComponentSelectionDescriptorInternal> ruleDescriptors, ComponentSelectorConverter componentSelectorConverter, boolean ignoreVersion) {
         this.dependency = dependency;
         this.requested = requested;
         this.ruleDescriptors = ruleDescriptors;
         this.componentSelectorConverter = componentSelectorConverter;
+        this.ignoreVersion = ignoreVersion;
         this.hashCode = computeHashCode();
     }
 
     private int computeHashCode() {
         int hashCode = dependency.hashCode();
         hashCode = 31 * hashCode + requested.hashCode();
+        hashCode = 31 * hashCode + Boolean.hashCode(ignoreVersion);
         return hashCode;
     }
 
@@ -68,6 +72,10 @@ class DependencyState {
         return dependency;
     }
 
+    public boolean isIgnoreVersion() {
+        return ignoreVersion;
+    }
+
     public ModuleIdentifier getModuleIdentifier() {
         if (moduleIdentifier == null) {
             moduleIdentifier = componentSelectorConverter.getModule(dependency.getSelector());
@@ -75,9 +83,9 @@ class DependencyState {
         return moduleIdentifier;
     }
 
-    public DependencyState withTarget(ComponentSelector target, List<ComponentSelectionDescriptorInternal> ruleDescriptors) {
+    public DependencyState withTarget(ComponentSelector target, List<ComponentSelectionDescriptorInternal> ruleDescriptors, boolean markOverridden) {
         DependencyMetadata targeted = dependency.withTarget(target);
-        return new DependencyState(targeted, requested, ruleDescriptors, componentSelectorConverter);
+        return new DependencyState(targeted, requested, ruleDescriptors, componentSelectorConverter, markOverridden);
     }
 
     /**
@@ -129,6 +137,9 @@ class DependencyState {
 
     private void addMainReason(List<ComponentSelectionDescriptorInternal> reasons) {
         ComponentSelectionDescriptorInternal dependencyDescriptor = dependency.isConstraint() ? CONSTRAINT : REQUESTED;
+        if (ruleDescriptors != null && ruleDescriptors.contains(BY_ANCESTOR)) {
+            dependencyDescriptor = BY_ANCESTOR;
+        }
         String reason = dependency.getReason();
         if (reason != null) {
             dependencyDescriptor = dependencyDescriptor.withDescription(Describables.of(reason));
